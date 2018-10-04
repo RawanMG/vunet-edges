@@ -246,7 +246,7 @@ def get_crop(bpart, joints, jo, wh, o_w, o_h, ar = 1.0):
     return M
 
 
-def normalize(imgs, coords, stickmen, jo, box_factor):
+# def normalize(imgs, coords, stickmen, jo, box_factor):
     out_imgs = list()
     out_stickmen = list()
 
@@ -298,6 +298,57 @@ def normalize(imgs, coords, stickmen, jo, box_factor):
     return out_imgs, out_stickmen
 
 
+def normalize(imgs, coords, stickmen, jo, box_factor):
+    out_imgs = list()
+    out_stickmen = list()
+
+    bs = len(imgs)
+    for i in range(bs):
+        img = imgs[i]
+        joints = coords[i]
+        stickman = stickmen[i]
+
+        h,w = img.shape[:2]
+        o_h = h
+        o_w = w
+        h = h // 2**box_factor
+        w = w // 2**box_factor
+        wh = np.array([w,h])
+        wh = np.expand_dims(wh, 0)
+
+        bparts = [
+                ["lshoulder","lhip","rhip","rshoulder"],
+                ["lshoulder", "rshoulder", "cnose"],
+                ["lshoulder","lelbow"],
+                ["lelbow", "lwrist"],
+                ["rshoulder","relbow"],
+                ["relbow", "rwrist"],
+                ["lhip", "lknee"],
+                ["rhip", "rknee"]]
+        ar = 0.5
+
+        part_imgs = list()
+        part_stickmen = list()
+        for bpart in bparts:
+            part_img = np.zeros((h,w,3))
+            part_stickman = np.zeros((h,w,3))
+            M = get_crop(bpart, joints, jo, wh, o_w, o_h, ar)
+
+            if M is not None:
+                part_img = cv2.warpPerspective(img, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
+                part_stickman = cv2.warpPerspective(stickman, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
+
+            part_imgs.append(part_img)
+            part_stickmen.append(part_stickman)
+        img = np.concatenate(part_imgs, axis = 2)
+        stickman = np.concatenate(part_stickmen, axis = 2)
+
+        out_imgs.append(img)
+        out_stickmen.append(stickman)
+    out_imgs = np.stack(out_imgs)
+    out_stickmen = np.stack(out_stickmen)
+    return out_imgs, out_stickmen
+
 class IndexFlow(object):
     """Batches from index file."""
     def __init__(
@@ -313,20 +364,27 @@ class IndexFlow(object):
         self.batch_size = self.shape[0]
         self.img_shape = self.shape[1:]
         self.box_factor = box_factor
-        with open(index_path, "rb") as f:
-            self.index = pickle.load(f)
-        self.basepath = os.path.dirname(index_path)
+        # with open(index_path, "rb") as f:
+        #     self.index = pickle.load(f)
+        self.index = {}
+        self.basepath = index_path #os.path.dirname(index_path)
+        self.index["imgs"] =  glob.glob(os.path.join(self.basepath, os.path.join('trainB', '*')))
+        trainsize = len(self.index["imgs"])
+        self.index["train"] = [True]* trainsize
+        self.index["imgs"].extend(glob.glob(os.path.join(self.basepath, os.path.join('testB', '*'))))
+        testsize = len(self.index["imgs"])-len(glob.glob(os.path.join(self.basepath, os.path.join('testB', '*'))))
+        self.index["train"].extend([False]*testsize)
         self.train = train
         self.fill_batches = fill_batches
         self.shuffle_ = shuffle
         self.return_keys = return_keys
 
-        self.jo = self.index["joint_order"]
+        # self.jo = self.index["joint_order"]
         # rescale joint coordinates to image shape
-        h,w = self.img_shape[:2]
-        wh = np.array([[[w,h]]])
-        self.index["joints"] = self.index["joints"] * wh
-
+        # h,w = self.img_shape[:2]
+        # wh = np.array([[[w,h]]])
+        self.index["joints"] = glob.glob(os.path.join(self.basepath, os.path.join('trainA', '*')))
+        self.index["joints"].extend(glob.glob(os.path.join(self.basepath, os.path.join('trainA', '*'))))
         self.indices = np.array(
                 [i for i in range(len(self.index["train"]))
                     if self._filter(i)])
@@ -338,11 +396,11 @@ class IndexFlow(object):
     def _filter(self, i):
         good = True
         good = good and (self.index["train"][i] == self.train)
-        joints = self.index["joints"][i]
-        required_joints = ["lshoulder","rshoulder","lhip","rhip"]
-        joint_indices = [self.jo.index(b) for b in required_joints]
-        joints = np.float32(joints[joint_indices])
-        good = good and valid_joints(joints)
+        # joints = self.index["joints"][i]
+        # required_joints = ["lshoulder","rshoulder","lhip","rhip"]
+        # joint_indices = [self.jo.index(b) for b in required_joints]
+        # joints = np.float32(joints[joint_indices])
+        # good = good and valid_joints(joints)
         return good
 
 
