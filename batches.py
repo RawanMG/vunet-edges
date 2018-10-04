@@ -246,57 +246,6 @@ def get_crop(bpart, joints, jo, wh, o_w, o_h, ar = 1.0):
     return M
 
 
-# def normalize(imgs, coords, stickmen, jo, box_factor):
-    out_imgs = list()
-    out_stickmen = list()
-
-    bs = len(imgs)
-    for i in range(bs):
-        img = imgs[i]
-        joints = coords[i]
-        stickman = stickmen[i]
-
-        h,w = img.shape[:2]
-        o_h = h
-        o_w = w
-        h = h // 2**box_factor
-        w = w // 2**box_factor
-        wh = np.array([w,h])
-        wh = np.expand_dims(wh, 0)
-
-        bparts = [
-                ["lshoulder","lhip","rhip","rshoulder"],
-                ["lshoulder", "rshoulder", "cnose"],
-                ["lshoulder","lelbow"],
-                ["lelbow", "lwrist"],
-                ["rshoulder","relbow"],
-                ["relbow", "rwrist"],
-                ["lhip", "lknee"],
-                ["rhip", "rknee"]]
-        ar = 0.5
-
-        part_imgs = list()
-        part_stickmen = list()
-        for bpart in bparts:
-            part_img = np.zeros((h,w,3))
-            part_stickman = np.zeros((h,w,3))
-            M = get_crop(bpart, joints, jo, wh, o_w, o_h, ar)
-
-            if M is not None:
-                part_img = cv2.warpPerspective(img, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
-                part_stickman = cv2.warpPerspective(stickman, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
-
-            part_imgs.append(part_img)
-            part_stickmen.append(part_stickman)
-        img = np.concatenate(part_imgs, axis = 2)
-        stickman = np.concatenate(part_stickmen, axis = 2)
-
-        out_imgs.append(img)
-        out_stickmen.append(stickman)
-    out_imgs = np.stack(out_imgs)
-    out_stickmen = np.stack(out_stickmen)
-    return out_imgs, out_stickmen
-
 
 def normalize(imgs, coords, stickmen, jo, box_factor):
     out_imgs = list()
@@ -368,11 +317,11 @@ class IndexFlow(object):
         #     self.index = pickle.load(f)
         self.index = {}
         self.basepath = index_path #os.path.dirname(index_path)
-        self.index["imgs"] =  glob.glob(os.path.join(self.basepath, os.path.join('trainB', '*')))
+        self.index["imgs"] =  glob.glob(os.path.join('trainB', '*'))
         trainsize = len(self.index["imgs"])
         self.index["train"] = [True]* trainsize
-        self.index["imgs"].extend(glob.glob(os.path.join(self.basepath, os.path.join('testB', '*'))))
-        testsize = len(self.index["imgs"])-len(glob.glob(os.path.join(self.basepath, os.path.join('testB', '*'))))
+        self.index["imgs"].extend(glob.glob(os.path.join('testB', '*')))
+        testsize = len(self.index["imgs"])-len(glob.glob(os.path.join('testB', '*')))
         self.index["train"].extend([False]*testsize)
         self.train = train
         self.fill_batches = fill_batches
@@ -383,8 +332,8 @@ class IndexFlow(object):
         # rescale joint coordinates to image shape
         # h,w = self.img_shape[:2]
         # wh = np.array([[[w,h]]])
-        self.index["joints"] = glob.glob(os.path.join(self.basepath, os.path.join('trainA', '*')))
-        self.index["joints"].extend(glob.glob(os.path.join(self.basepath, os.path.join('trainA', '*'))))
+        self.index["joints"] = glob.glob(os.path.join('trainA', '*'))
+        self.index["joints"].extend(glob.glob(os.path.join('trainA', '*')))
         self.indices = np.array(
                 [i for i in range(len(self.index["train"]))
                     if self._filter(i)])
@@ -433,18 +382,30 @@ class IndexFlow(object):
         batch["imgs"] = np.stack(batch["imgs"])
         batch["imgs"] = preprocess(batch["imgs"])
 
-        # load joint coordinates
-        batch["joints_coordinates"] = [self.index["joints"][i] for i in batch_indices]
-
-        # generate stickmen images from coordinates
+        #load joints
         batch["joints"] = list()
-        for joints in batch["joints_coordinates"]:
-            img = make_joint_img(self.img_shape, self.jo, joints)
-            batch["joints"].append(img)
+        for i in batch_indices:
+        	relpath = self.index["joints"][i]
+        	path = os.path.join(self.basepath, relpath)
+            img = load_img(path, target_size = self.img_shape)
+            batch["joints"].append(img)        
         batch["joints"] = np.stack(batch["joints"])
         batch["joints"] = preprocess(batch["joints"])
+        # load joint coordinates
+        # batch["joints_coordinates"] = [self.index["joints"][i] for i in batch_indices]
 
-        imgs, joints = normalize(batch["imgs"], batch["joints_coordinates"], batch["joints"], self.jo, self.box_factor)
+        # generate stickmen images from coordinates
+        # batch["joints"] = list()
+        # for joints in batch["joints_coordinates"]:
+        #     img = make_joint_img(self.img_shape, self.jo, joints)
+        #     batch["joints"].append(img)
+        # batch["joints"] = np.stack(batch["joints"])
+        # batch["joints"] = preprocess(batch["joints"])
+
+        # imgs, joints = normalize(batch["imgs"], batch["joints_coordinates"], batch["joints"], self.jo, self.box_factor)
+        
+        imgs, joints = batch["imgs"], batch["joints"]
+
         batch["norm_imgs"] = imgs
         batch["norm_joints"] = joints
 
