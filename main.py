@@ -46,6 +46,8 @@ class Model(object):
         self.bottleneck_factor = config["bottleneck_factor"]
         self.box_factor = config["box_factor"]
         self.imgn_shape = 2*[config["spatial_size"]//(2**self.box_factor)] + [n_boxes*3]
+        # self.imgn_shape = 2*[config["spatial_size"]] 
+
         self.init_batches = config["init_batches"]
 
         self.initial_lr = config["lr"]

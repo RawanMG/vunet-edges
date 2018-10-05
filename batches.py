@@ -8,7 +8,8 @@ import cv2
 import math
 
 
-n_boxes = 8
+# n_boxes = 8
+n_boxes = 1
 
 
 class BufferedWrapper(object):
@@ -315,35 +316,8 @@ def normalize(imgs, stickmen, box_factor):
         o_w = w
         h = h // 2**box_factor
         w = w // 2**box_factor
-        wh = np.array([w,h])
-        wh = np.expand_dims(wh, 0)
-
-        bparts = [
-                ["lshoulder","lhip","rhip","rshoulder"],
-                ["lshoulder", "rshoulder", "cnose"],
-                ["lshoulder","lelbow"],
-                ["lelbow", "lwrist"],
-                ["rshoulder","relbow"],
-                ["relbow", "rwrist"],
-                ["lhip", "lknee"],
-                ["rhip", "rknee"]]
-        ar = 0.5
-
-        part_imgs = list()
-        part_stickmen = list()
-        for bpart in bparts:
-            part_img = np.zeros((h,w,3))
-            part_stickman = np.zeros((h,w,3))
-            M = get_crop(bpart, joints, jo, wh, o_w, o_h, ar)
-
-            if M is not None:
-                part_img = cv2.warpPerspective(img, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
-                part_stickman = cv2.warpPerspective(stickman, M, (h,w), borderMode = cv2.BORDER_REPLICATE)
-
-            part_imgs.append(part_img)
-            part_stickmen.append(part_stickman)
-        img = np.concatenate(part_imgs, axis = 2)
-        stickman = np.concatenate(part_stickmen, axis = 2)
+        img = cv2.resize(img, (h, w))
+        stickman = cv2.resize(stickman, (h, w))
 
         out_imgs.append(img)
         out_stickmen.append(stickman)
@@ -456,9 +430,9 @@ class IndexFlow(object):
         # batch["joints"] = np.stack(batch["joints"])
         # batch["joints"] = preprocess(batch["joints"])
 
-        # imgs, joints = normalize(batch["imgs"], batch["joints_coordinates"], batch["joints"], self.jo, self.box_factor)
+        imgs, joints = normalize(batch["imgs"], batch["joints"], self.box_factor)
         
-        imgs, joints = batch["imgs"], batch["joints"]
+        # imgs, joints = batch["imgs"], batch["joints"]
         batch["norm_imgs"] = imgs
         batch["norm_joints"] = joints
 
