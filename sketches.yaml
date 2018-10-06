@@ -1,8 +1,8 @@
-data_index: data\\sketches
+data_index: data/sketches
 batch_size: 1
 init_batches: 1
 spatial_size: 128
-box_factor: 1
+box_factor: 2
 bottleneck_factor: 1
 
 lr: 1.0e-3
