@@ -347,10 +347,12 @@ class IndexFlow(object):
         self.basepath = index_path #os.path.dirname(index_path)
         self.index["imgs"] =  glob.glob(os.path.join(index_path, os.path.join('trainB', '*')))
         trainsize = len(self.index["imgs"])
+        print('trainsize = %d'%trainsize)
         self.index["train"] = [True]* trainsize
         self.index["imgs"].extend(glob.glob(os.path.join(index_path, os.path.join('testB', '*'))))
-        testsize = len(self.index["imgs"])-len(glob.glob(os.path.join(index_path,os.path.join('testB', '*'))))
+        testsize = len(glob.glob(os.path.join(index_path,os.path.join('testB', '*'))))
         self.index["train"].extend([False]*testsize)
+        print('testsize = %d'%testsize)
         self.train = train
         self.fill_batches = fill_batches
         self.shuffle_ = shuffle
@@ -365,7 +367,6 @@ class IndexFlow(object):
         self.indices = np.array(
                 [i for i in range(len(self.index["train"]))
                     if self._filter(i)])
-
         self.n = self.indices.shape[0]
         self.shuffle()
 
